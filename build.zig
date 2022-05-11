@@ -1,16 +1,45 @@
 const std = @import("std");
 const zwin32 = @import("libs/zwin32/build.zig");
 
-pub const pkg = std.build.Pkg {
-    .name = "pica_zig",
-    .path = .{ .path = thisDir() ++ "/src/pica_zig.zig" },
-    .dependencies = 
-        std.build.Dependency {
-            .pkg = "libs/zwin32",
-            .path = .{ .path = thisDir() ++ "/src/libs/zwin32/build.zig" },
-        },
-};
 
+// const zwin32_pkg: std.build.Pkg = .{
+//             .name = "zwin32",
+//             .path = .{ 
+//                 .path = thisDir() ++ "/libs/zwin32/build.zig"
+//             }
+//         };
+
+// pub const pkg = std.build.Pkg {
+//     .name = "pica_zig",
+//     .path = .{ .path = thisDir() ++ "/src/lib.zig" },
+//     .dependencies = &[_]std.build.Pkg { zwin32_pkg, },
+// };
+
+pub fn build(b: *std.build.Builder) void {
+    const build_mode = b.standardReleaseOptions();
+    const target = b.standardTargetOptions(.{});
+
+    // pica_zig library
+    const lib = b.addStaticLibrary("zlibpica", thisDir() ++ "/src/lib.zig");
+    lib.setBuildMode(build_mode);
+    lib.setTarget(target);
+    lib.install();
+    
+   
+    // pica_zig executable example 
+    const example_exe = b.addExecutable("example", thisDir() ++ "/src/example.zig");
+    example_exe.setBuildMode(build_mode);
+    example_exe.setTarget(target);
+    example_exe.addPackage(zwin32.pkg);
+    example_exe.install();
+
+    const example_run_cmd = example_exe.run();
+    example_run_cmd.step.dependOn(b.getInstallStep());
+    const example_run_step = b.step("run", "Run the example");
+    example_run_step.dependOn(&example_run_cmd.step);
+}
+
+//
 fn thisDir() []const u8 {
     return std.fs.path.dirname(@src().file) orelse ".";
 }
