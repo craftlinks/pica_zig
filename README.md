@@ -1,4 +1,4 @@
-# PiCa -- Zig Helper Libary for Win32 Window Management
+# zPiCa - Zig Helper Libary for Win32 Window Management
 ## Getting started
 
 Copy `zpica` folder to a `libs` subdirectory of the root of your project.
@@ -24,5 +24,13 @@ pub fn main() !void {
     ...
 }
 ```
+An example window application using `zpica` can be found in `zpica/src/example`  
 
-zpica uses zwin32 standalone Zig bindings for Win32 API by [Michal Ziulek](https://github.com/michal-z) 
+To run the example use:
+```
+zig build run
+```
+
+
+
+`zpica` uses `zwin32` standalone Zig bindings for Win32 API by [Michal Ziulek](https://github.com/michal-z) 
