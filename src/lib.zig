@@ -53,7 +53,6 @@ pub const Window = struct {
         checkIfWindowsVersionIsSupported();
 
         const main_fiber = try convertThreadToFiber(null);
-        std.debug.print("main fiber address: {}\n", .{main_fiber});
 
         const winclass = w32.user32.WNDCLASSEXA {
             .style = w32.user32.CS_HREDRAW | w32.user32.CS_VREDRAW,

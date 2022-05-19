@@ -26,7 +26,5 @@ pub fn main() !void {
     // Initialize and show the window (required)
     try pica.Window.initialize(allocator, &window);
     
-    std.debug.print("window title: {s}\n", .{window.attributes.title});
-    std.debug.print("window position: {any}\n", .{window.attributes.position});
-    std.debug.print("window size: {any}\n", .{window.attributes.size});  
+    std.debug.print("{any}\n", .{window});
 }
