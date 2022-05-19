@@ -1,15 +1,31 @@
 const std = @import("std");
 const pica = @import("pica");
 
+
+// A global variable to hold our pica window (required)
+var window: pica.Window = .{};
+
 pub fn main() !void {
 
-    const window_attributes = pica.WindowAttributes {
-            .title = "New Window",
-            .position = .{100, 100},
-            .size = .{400, 400},
-        };
+    // Create main memory allocator for our application.
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    
+    const allocator = gpa.allocator();
+    
+    // Define the attributes of our window (optional)
+    var window_attributes = pica.WindowAttributes {
+        .title = "New Window",
+        .position = .{10, 10},
+        .size = .{1920, 1080},
+    };
 
-    const window = pica.Window.newWithAttributes(&window_attributes);
+    // Set the window attributes (optional)
+    window.attributes = window_attributes;
+    
+    // Initialize and show the window (required)
+    try pica.Window.initialize(allocator, &window);
+    
     std.debug.print("window title: {s}\n", .{window.attributes.title});
     std.debug.print("window position: {any}\n", .{window.attributes.position});
     std.debug.print("window size: {any}\n", .{window.attributes.size});  

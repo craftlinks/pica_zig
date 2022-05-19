@@ -1,10 +1,10 @@
 const std = @import("std");
-const zwin32 = @import("libs/zwin32/build.zig");
+const w32 = @import("libs/zwin32/build.zig");
 
 pub const pkg = std.build.Pkg {
     .name = "pica",
     .path = .{ .path = thisDir() ++ "/src/lib.zig" },
-    .dependencies = &[_]std.build.Pkg { zwin32.pkg, },
+    .dependencies = &[_]std.build.Pkg { w32.pkg, },
 };
 
 pub fn build(b: *std.build.Builder) void {
