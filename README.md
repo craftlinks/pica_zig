@@ -1,4 +1,4 @@
-# zPiCa - Zig Helper Libary for Win32 Window Management
+# zPiCa - Zig Helper Libary for Win32 Window Management (!!WIP!!)
 ## Getting started
 
 Copy `zpica` folder to a `libs` subdirectory of the root of your project.
