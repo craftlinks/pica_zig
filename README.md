@@ -7,7 +7,7 @@ Then in your `build.zig` add:
 
 ```zig
 const std = @import("std");
-const zpica = @import("libs/pica/build.zig");
+const pica = @import("libs/pica/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
     ...
