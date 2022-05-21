@@ -15,7 +15,7 @@ pub fn build(b: *std.build.Builder) void {
 }
 ```
 
-Now in your code you may import and use pica:
+Now in your code you may import and use `pica`:
 
 ```zig
 const pica = @import("pica");
