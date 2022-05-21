@@ -6,7 +6,8 @@ pub const w32 = zwin32.base;
 const GWLP_USERDATA = -21;
 
 /// kernel32 external function that converts the current thread into a fiber
-extern "kernel32" fn ConvertThreadToFiber(lpParameter: ?*anyopaque) callconv(w32.WINAPI) ?*anyopaque;
+extern "kernel32" fn ConvertThreadToFiber(lpParameter: ?*anyopaque)
+    callconv(w32.WINAPI) ?*anyopaque;
 
 /// Wrapper function for ConvertThreadToFiber.
 /// Returns a fiber address if the call succeeds.
@@ -18,6 +19,51 @@ pub fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
     const err = w32.kernel32.GetLastError();
     return w32.unexpectedError(err);
 }
+
+
+extern "kernel32" fn CreateFiber(
+    dwStackSize: usize,
+    lpStartAddress: *anyopaque,
+    lpParameter: w32.LPVOID,
+) callconv(w32.WINAPI) ?*anyopaque;
+
+pub fn createFiber(
+    dwStackSize: usize,
+    lpStartAddress: *anyopaque,
+    lpParameter: *anyopaque,
+) !*anyopaque {
+    const lpFiber = CreateFiber(dwStackSize, lpStartAddress, lpParameter);
+    if (lpFiber) |fiber| return fiber;
+    const err = w32.kernel32.GetLastError();
+    return w32.unexpectedError(err);
+}
+
+const TIMERPROC = fn (
+    hwnd: w32.HWND,
+    parm1: w32.UINT,
+    parm2: usize,
+    parm3: w32.DWORD
+) callconv(w32.WINAPI) w32.LPVOID;
+
+extern "user32" fn SetTimer(
+    hwnd: ?w32.HWND,
+    nIDEvent: usize,
+    uElapse: w32.UINT,
+    lpTimerFunc: ?TIMERPROC
+) callconv(w32.WINAPI) usize;
+
+pub fn setTimer(
+    hwnd: ?w32.HWND,
+    nIDEvent: usize,
+    uElapse: w32.UINT,
+    lpTimerFunc: ?TIMERPROC
+) !usize {
+    const timer: usize = SetTimer(hwnd, nIDEvent, uElapse, lpTimerFunc);
+    if (timer != 0) return timer;
+    const err = w32.kernel32.GetLastError();
+    return w32.unexpectedError(err);
+}
+
 
 // ---------------------------------------------------------------------------
 
@@ -38,15 +84,14 @@ pub const Window = struct {
     handle: w32.HWND = undefined,
     device_context: w32.HDC = undefined,
     main_fiber: ?*anyopaque = null,
-    /// The window attributes.
+    message_fiber: ?*anyopaque = null,
     attributes: WindowAttributes = .{},
     initialized: bool = false,
 
    
 };
 
-
- // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 /// Creates a new window with the given window attributes.
 pub fn initialize(
@@ -57,6 +102,7 @@ pub fn initialize(
     checkIfWindowsVersionIsSupported();
 
     window.main_fiber = try convertThreadToFiber(null);
+    window.message_fiber = try createFiber(0, window_message_fiber_proc, window);
 
     const winclass = w32.user32.WNDCLASSEXA {
         .style = w32.user32.CS_HREDRAW | w32.user32.CS_VREDRAW,
@@ -130,6 +176,14 @@ pub fn pull(window: *Window) anyerror!bool {
 
 
     return true;
+}
+
+
+
+// ---------------------------------------------------------------------------
+
+fn window_message_fiber_proc(window: *Window) callconv(w32.WINAPI) void {
+    _ = setTimer(window.handle, 1, 1, null) catch unreachable;
 }
 
 
