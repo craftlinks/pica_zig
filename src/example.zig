@@ -12,19 +12,35 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     
     const allocator = gpa.allocator();
+    _ =allocator;
     
     // Define the attributes of our window (optional)
     var window_attributes = pica.WindowAttributes {
-        .title = "New Window",
+        .title = "PiCA Window Example",
         .position = .{10, 10},
-        .size = .{1920, 1080},
+        .size = .{800, 600},
     };
 
     // Set the window attributes (optional)
+    // TODO Geert: Can attributes be set after the window is created?
     window.attributes = window_attributes;
     
     // Initialize and show the window (required)
-    try pica.Window.initialize(allocator, &window);
+    try pica.initialize(&window);
+
+    while(pica.pull(&window)) {
+        // Do stuff
+
+
+
+    } else |err| switch (err) {
+        error.WindowNotInitialized => {
+          std.debug.print("Initialize Window before calling pica.pull", .{});
+        },
+        else => {
+            std.debug.print("Unknown error", .{});
+        }
+    }
     
     std.debug.print("{any}\n", .{window});
 }
