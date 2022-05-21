@@ -23,14 +23,14 @@ pub fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
 
 extern "kernel32" fn CreateFiber(
     dwStackSize: usize,
-    lpStartAddress: *anyopaque,
+    lpStartAddress: *const anyopaque,
     lpParameter: w32.LPVOID,
 ) callconv(w32.WINAPI) ?*anyopaque;
 
 pub fn createFiber(
     dwStackSize: usize,
-    lpStartAddress: *anyopaque,
-    lpParameter: *anyopaque,
+    lpStartAddress: *const anyopaque,
+    lpParameter:  * anyopaque,
 ) !*anyopaque {
     const lpFiber = CreateFiber(dwStackSize, lpStartAddress, lpParameter);
     if (lpFiber) |fiber| return fiber;
@@ -64,6 +64,14 @@ pub fn setTimer(
     return w32.unexpectedError(err);
 }
 
+extern "kernel32" fn SwitchToFiber(lpFiber: *anyopaque)
+    callconv(w32.WINAPI) void;
+
+
+pub fn switchToFiber(lpFiber: *anyopaque) void {
+    SwitchToFiber(lpFiber);
+}
+
 
 // ---------------------------------------------------------------------------
 
@@ -87,16 +95,27 @@ pub const Window = struct {
     message_fiber: ?*anyopaque = null,
     attributes: WindowAttributes = .{},
     initialized: bool = false,
+    quit: bool = false,
 
    
 };
 
+// ---------------------------------------------------------------------------
+pub fn initialize(window: *Window) !void {
+    if(windowInitialize(window)) |value| {
+        _ = value;
+    } else |err| {
+        return err;
+    }
+}
+
+
 // ----------------------------------------------------------------------------
 
 /// Creates a new window with the given window attributes.
-pub fn initialize(
+fn windowInitialize(
     window: *Window,
-) !void {        
+) !bool {        
     
     // Check if the user is uysing a valid window version.
     checkIfWindowsVersionIsSupported();
@@ -167,15 +186,18 @@ pub fn initialize(
     window.device_context = try w32.user32.getDC(window.handle);
     
     window.initialized = true; 
+    return true;
 }
 
 // ----------------------------------------------------------------------------
 
 pub fn pull(window: *Window) anyerror!bool {
     if (!window.initialized) return error.WindowNotInitialized;
+    try windowPull(window);
+    
 
 
-    return true;
+    return window.quit;
 }
 
 
@@ -184,6 +206,14 @@ pub fn pull(window: *Window) anyerror!bool {
 
 fn window_message_fiber_proc(window: *Window) callconv(w32.WINAPI) void {
     _ = setTimer(window.handle, 1, 1, null) catch unreachable;
+    var message = std.mem.zeroes(w32.user32.MSG);
+    while (true) {    
+        if (w32.user32.peekMessageA(&message, null, 0, 0, w32.user32.PM_REMOVE) catch false) {
+            _ = w32.user32.translateMessage(&message);
+            _ = w32.user32.dispatchMessageA(&message);
+        }
+        switchToFiber(window.main_fiber.?);
+    }
 }
 
 
@@ -198,17 +228,16 @@ fn processWindowMessage(
 ) callconv(w32.WINAPI) w32.LRESULT {
 
     const _window_ptr: isize = w32.user32.getWindowLongPtrA(window_handle, GWLP_USERDATA) catch unreachable;
-    std.debug.print("WINDOW: {any}\n", .{_window_ptr});
     if(_window_ptr == 0) return w32.user32.DefWindowProcA(window_handle, message, wparam, lparam);
     
     var window: *Window = @intToPtr(*Window, @intCast(usize, _window_ptr));
     _ = window;
-    std.debug.print("Initialized", .{});
 
     switch (message) {
         w32.user32.WM_DESTROY => {
             std.debug.print("WM_DESTROY\n", .{});
-            w32.user32.PostQuitMessage(0);
+            window.quit = true;
+            //w32.user32.PostQuitMessage(0);
         },
         else => {
           return w32.user32.DefWindowProcA(window_handle, message, wparam, lparam);
@@ -217,6 +246,12 @@ fn processWindowMessage(
 
     return 0;
 
+}
+
+
+// ---------------------------------------------------------------------------
+fn windowPull(window: *Window) !void {
+    switchToFiber(window.message_fiber.?);
 }
 
 // ---------------------------------------------------------------------------

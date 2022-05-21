@@ -27,8 +27,10 @@ pub fn main() !void {
     
     // Initialize and show the window (required)
     try pica.initialize(&window);
+    std.debug.print("{any}\n", .{window});
 
-    while(pica.pull(&window)) {
+    while(pica.pull(&window)) |quit| {
+        if (quit) break;
         // Do stuff
 
 
@@ -42,5 +44,5 @@ pub fn main() !void {
         }
     }
     
-    std.debug.print("{any}\n", .{window});
+    
 }
