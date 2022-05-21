@@ -3,6 +3,18 @@
 		{
 			"name": "pica_zig",
 			"path": "."
+		},
+		{
+			"path": "..\\PiCa"
+		},
+		{
+			"path": "..\\..\\Repositories\\zig"
+		},
+		{
+			"path": "..\\..\\Repositories\\zig-gamedev"
+		},
+		{
+			"path": "..\\..\\Repositories\\mach"
 		}
 	],
 	"settings": {}
