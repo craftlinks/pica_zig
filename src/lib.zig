@@ -20,7 +20,6 @@ pub fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
     return w32.unexpectedError(err);
 }
 
-
 extern "kernel32" fn CreateFiber(
     dwStackSize: usize,
     lpStartAddress: *const anyopaque,
@@ -121,14 +120,21 @@ fn windowInitialize(
     checkIfWindowsVersionIsSupported();
 
     window.main_fiber = try convertThreadToFiber(null);
-    window.message_fiber = try createFiber(0, window_message_fiber_proc, window);
+    window.message_fiber = try createFiber(
+        0,
+        window_message_fiber_proc, 
+        window
+    );
 
     const winclass = w32.user32.WNDCLASSEXA {
         .style = w32.user32.CS_HREDRAW | w32.user32.CS_VREDRAW,
         .lpfnWndProc = processWindowMessage,
         .cbClsExtra = 0,
         .cbWndExtra = 0,
-        .hInstance = @ptrCast(w32.HINSTANCE, w32.kernel32.GetModuleHandleW(null)),
+        .hInstance = @ptrCast(
+            w32.HINSTANCE,
+            w32.kernel32.GetModuleHandleW(null)
+        ),
         .hIcon = null,
         .hCursor = w32.LoadCursorA(null, @intToPtr(w32.LPCSTR, 32515)),
         .hbrBackground = null,
@@ -144,8 +150,12 @@ fn windowInitialize(
     w32.user32.WS_CAPTION +
     w32.user32.WS_MINIMIZEBOX;
 
-    const window_position = if (mem.eql(i32, &window.attributes.position, &[2]i32{0,0}))
-        [2]i32{w32.user32.CW_USEDEFAULT, w32.user32.CW_USEDEFAULT}
+    const window_position = if (mem.eql(
+            i32,
+            &window.attributes.position,
+            &[2]i32{0,0}
+        )
+    ) [2]i32{w32.user32.CW_USEDEFAULT, w32.user32.CW_USEDEFAULT}
     else window.attributes.position;
 
     var rect = w32.RECT{
@@ -182,7 +192,11 @@ fn windowInitialize(
     const dwNewLong = @intCast(isize, @ptrToInt(window));
     std.debug.print("dwNewLong: {any} \n", .{dwNewLong});
 
-    _ = try w32.user32.setWindowLongPtrA(window.handle, GWLP_USERDATA, dwNewLong);
+    _ = try w32.user32.setWindowLongPtrA(
+        window.handle,
+        GWLP_USERDATA,
+        dwNewLong
+    );
     window.device_context = try w32.user32.getDC(window.handle);
     
     window.initialized = true; 
@@ -200,23 +214,26 @@ pub fn pull(window: *Window) anyerror!bool {
     return window.quit;
 }
 
-
-
 // ---------------------------------------------------------------------------
 
 fn window_message_fiber_proc(window: *Window) callconv(w32.WINAPI) void {
     _ = setTimer(window.handle, 1, 1, null) catch unreachable;
     var message = std.mem.zeroes(w32.user32.MSG);
     while (true) {    
-        if (w32.user32.peekMessageA(&message, null, 0, 0, w32.user32.PM_REMOVE) catch false) {
+        if (w32.user32.peekMessageA(
+                    &message,
+                    null,
+                    0,
+                    0,
+                    w32.user32.PM_REMOVE
+                ) catch false
+            ) {
             _ = w32.user32.translateMessage(&message);
             _ = w32.user32.dispatchMessageA(&message);
         }
         switchToFiber(window.main_fiber.?);
     }
 }
-
-
 
 // ---------------------------------------------------------------------------
 
@@ -227,8 +244,17 @@ fn processWindowMessage(
     lparam: w32.LPARAM,
 ) callconv(w32.WINAPI) w32.LRESULT {
 
-    const _window_ptr: isize = w32.user32.getWindowLongPtrA(window_handle, GWLP_USERDATA) catch unreachable;
-    if(_window_ptr == 0) return w32.user32.DefWindowProcA(window_handle, message, wparam, lparam);
+    const _window_ptr: isize = w32.user32.getWindowLongPtrA(
+        window_handle,
+        GWLP_USERDATA
+    ) catch unreachable;
+    
+    if(_window_ptr == 0) return w32.user32.DefWindowProcA(
+        window_handle,
+        message,
+        wparam,
+        lparam
+    );
     
     var window: *Window = @intToPtr(*Window, @intCast(usize, _window_ptr));
     _ = window;
@@ -240,14 +266,18 @@ fn processWindowMessage(
             //w32.user32.PostQuitMessage(0);
         },
         else => {
-          return w32.user32.DefWindowProcA(window_handle, message, wparam, lparam);
-      },
+            return w32.user32.DefWindowProcA(
+                window_handle,
+                message,
+                wparam, 
+                lparam
+            );
+        },
     }
 
     return 0;
 
 }
-
 
 // ---------------------------------------------------------------------------
 fn windowPull(window: *Window) !void {
