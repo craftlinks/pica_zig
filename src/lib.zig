@@ -103,11 +103,7 @@ pub const Window = struct {
 
 // ---------------------------------------------------------------------------
 pub fn initialize(window: *Window) !void {
-    if(windowInitialize(window)) |value| {
-        _ = value;
-    } else |err| {
-        return err;
-    }
+    try windowInitialize(window);
 }
 
 
@@ -116,7 +112,7 @@ pub fn initialize(window: *Window) !void {
 /// Creates a new window with the given window attributes.
 fn windowInitialize(
     window: *Window,
-) !bool {        
+) !void {        
     
     // Check if the user is uysing a valid window version.
     checkIfWindowsVersionIsSupported();
@@ -198,7 +194,6 @@ fn windowInitialize(
     window.device_context = try w32.user32.getDC(window.handle);
     
     window.initialized = true; 
-    return true;
 }
 
 // ----------------------------------------------------------------------------
