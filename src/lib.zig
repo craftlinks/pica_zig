@@ -37,6 +37,14 @@ fn createFiber(
     return w32.unexpectedError(err);
 }
 
+extern "kernel32" fn SwitchToFiber(lpFiber: *anyopaque)
+    callconv(w32.WINAPI) void;
+
+
+fn switchToFiber(lpFiber: *anyopaque) void {
+    SwitchToFiber(lpFiber);
+}
+
 const TIMERPROC = fn (
     hwnd: w32.HWND,
     parm1: w32.UINT,
@@ -63,13 +71,30 @@ fn setTimer(
     return w32.unexpectedError(err);
 }
 
-extern "kernel32" fn SwitchToFiber(lpFiber: *anyopaque)
-    callconv(w32.WINAPI) void;
+extern "user32" fn RegisterRawInputDevices(
+    pRawInputDevices: *const RAWINPUTDEVICE,
+    uiNumDevices: usize,
+    cbSize: usize
+) callconv(w32.WINAPI) usize;
 
-
-fn switchToFiber(lpFiber: *anyopaque) void {
-    SwitchToFiber(lpFiber);
+fn registerRawInputDevices(
+    pRawInputDevices: *const RAWINPUTDEVICE,
+    uiNumDevices: usize,
+    cbSize: usize
+) !void {
+    const ret = RegisterRawInputDevices(pRawInputDevices, uiNumDevices, cbSize);
+    if (ret == 0) {
+        const err = w32.kernel32.GetLastError();
+        return w32.unexpectedError(err);
+    }
 }
+
+const RAWINPUTDEVICE = extern struct {
+    usUsagePage: w32.USHORT,
+    usUsage: w32.USHORT,
+    dwFlags: w32.DWORD,
+    hwndTarget: w32.HWND,
+};
 
 
 // ---------------------------------------------------------------------------
@@ -123,6 +148,7 @@ pub const Window = struct {
 pub fn initialize(window: *Window) !void {
     try windowInitialize(window);
     try timeInitialize(window);
+    try mouseInitialize(window);
 }
 
 
@@ -230,6 +256,22 @@ fn timeInitialize(window: *Window) !void {
     );  
     window.time.initial_ticks = large_integer;
     
+}
+
+// ----------------------------------------------------------------------------
+
+fn mouseInitialize(window: *Window) !void {
+    const raw_input_device: RAWINPUTDEVICE = .{
+        .usUsagePage =1,
+        .usUsage = 2,
+        .dwFlags = 0,
+        .hwndTarget = window.handle,
+    };
+    try registerRawInputDevices(
+        &raw_input_device,
+        1,
+        @sizeOf(RAWINPUTDEVICE),
+    );
 }
 
 // ----------------------------------------------------------------------------
