@@ -82,6 +82,8 @@ pub const WindowAttributes = struct {
     position: [2]i32 = .{50,50},
     /// The window's size.
     size: [2]i32 = .{640, 480},
+    /// The window's size has changed.
+    resized: bool = false,
 };
 
 
@@ -136,7 +138,7 @@ fn windowInitialize(
             w32.kernel32.GetModuleHandleW(null)
         ),
         .hIcon = null,
-        .hCursor = w32.LoadCursorA(null, @intToPtr(w32.LPCSTR, 32515)),
+        .hCursor = null, // w32.LoadCursorA(null, @intToPtr(w32.LPCSTR, 32512)),
         .hbrBackground = null,
         .lpszMenuName = null,
         .lpszClassName = "picaWINDOW",
@@ -144,11 +146,7 @@ fn windowInitialize(
     };
     _ = try w32.user32.registerClassExA(&winclass);
 
-    const style = w32.user32.WS_OVERLAPPED +
-    w32.user32.WS_VISIBLE +
-    w32.user32.WS_SYSMENU +
-    w32.user32.WS_CAPTION +
-    w32.user32.WS_MINIMIZEBOX;
+    const style = w32.user32.WS_OVERLAPPEDWINDOW + w32.user32.WS_VISIBLE;
 
     const window_position = if (mem.eql(
             i32,
@@ -260,10 +258,19 @@ fn processWindowMessage(
     _ = window;
 
     switch (message) {
+        
+        w32.user32.WM_SIZE => {
+            window.attributes.resized = true;
+        },
+        
+        w32.user32.WM_TIMER => {
+            switchToFiber(window.main_fiber.?);
+
+        },
+        
         w32.user32.WM_DESTROY => {
             std.debug.print("WM_DESTROY\n", .{});
             window.quit = true;
-            //w32.user32.PostQuitMessage(0);
         },
         else => {
             return w32.user32.DefWindowProcA(
