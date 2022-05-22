@@ -3,15 +3,17 @@ const mem = @import("std").mem;
 pub const zwin32 = @import("zwin32");
 pub const w32 = zwin32.base;
 
+// ----------------------------------------------------------------------------
+// Constants
 const GWLP_USERDATA = -21;
 
-/// kernel32 external function that converts the current thread into a fiber
+
+// ----------------------------------------------------------------------------
+// Win32 Fibers (aka "co-routines")
+
 extern "kernel32" fn ConvertThreadToFiber(lpParameter: ?*anyopaque)
     callconv(w32.WINAPI) ?*anyopaque;
 
-/// Wrapper function for ConvertThreadToFiber.
-/// Returns a fiber address if the call succeeds.
-/// Returns an error if the call fails
 fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
     const lpParameter = lparam;
     const lpFiber = ConvertThreadToFiber(lpParameter);
@@ -45,6 +47,9 @@ fn switchToFiber(lpFiber: *anyopaque) void {
     SwitchToFiber(lpFiber);
 }
 
+// ---------------------------------------------------------------------------
+// SetTimer
+
 const TIMERPROC = fn (
     hwnd: w32.HWND,
     parm1: w32.UINT,
@@ -71,6 +76,16 @@ fn setTimer(
     return w32.unexpectedError(err);
 }
 
+// ---------------------------------------------------------------------------
+// Register RAWINPUTDEVICE for mouse.
+
+const RAWINPUTDEVICE = extern struct {
+    usUsagePage: w32.USHORT,
+    usUsage: w32.USHORT,
+    dwFlags: w32.DWORD,
+    hwndTarget: w32.HWND,
+};
+
 extern "user32" fn RegisterRawInputDevices(
     pRawInputDevices: *const RAWINPUTDEVICE,
     uiNumDevices: usize,
@@ -88,13 +103,6 @@ fn registerRawInputDevices(
         return w32.unexpectedError(err);
     }
 }
-
-const RAWINPUTDEVICE = extern struct {
-    usUsagePage: w32.USHORT,
-    usUsage: w32.USHORT,
-    dwFlags: w32.DWORD,
-    hwndTarget: w32.HWND,
-};
 
 
 // ---------------------------------------------------------------------------
@@ -150,7 +158,6 @@ pub fn initialize(window: *Window) !void {
     try timeInitialize(window);
     try mouseInitialize(window);
 }
-
 
 // ----------------------------------------------------------------------------
 
