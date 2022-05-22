@@ -7,13 +7,6 @@ var window: pica.Window = .{};
 
 pub fn main() !void {
 
-    // Create main memory allocator for our application.
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    
-    const allocator = gpa.allocator();
-    _ =allocator;
-    
     // Define the attributes of our window (optional)
     var window_attributes = pica.WindowAttributes {
         .title = "PiCA Window Example",
@@ -33,8 +26,6 @@ pub fn main() !void {
         if (quit) break;
         // Do stuff
 
-
-
     } else |err| switch (err) {
         error.WindowNotInitialized => {
           std.debug.print("Initialize Window before calling pica.pull", .{});
@@ -43,6 +34,4 @@ pub fn main() !void {
             std.debug.print("Unknown error", .{});
         }
     }
-    
-    
 }
