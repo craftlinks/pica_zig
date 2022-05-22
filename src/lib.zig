@@ -12,7 +12,7 @@ extern "kernel32" fn ConvertThreadToFiber(lpParameter: ?*anyopaque)
 /// Wrapper function for ConvertThreadToFiber.
 /// Returns a fiber address if the call succeeds.
 /// Returns an error if the call fails
-pub fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
+fn convertThreadToFiber(lparam: ?*anyopaque) !*anyopaque {
     const lpParameter = lparam;
     const lpFiber = ConvertThreadToFiber(lpParameter);
     if (lpFiber) |fiber| return fiber;
@@ -26,7 +26,7 @@ extern "kernel32" fn CreateFiber(
     lpParameter: w32.LPVOID,
 ) callconv(w32.WINAPI) ?*anyopaque;
 
-pub fn createFiber(
+fn createFiber(
     dwStackSize: usize,
     lpStartAddress: *const anyopaque,
     lpParameter:  * anyopaque,
@@ -51,7 +51,7 @@ extern "user32" fn SetTimer(
     lpTimerFunc: ?TIMERPROC
 ) callconv(w32.WINAPI) usize;
 
-pub fn setTimer(
+fn setTimer(
     hwnd: ?w32.HWND,
     nIDEvent: usize,
     uElapse: w32.UINT,
@@ -67,10 +67,27 @@ extern "kernel32" fn SwitchToFiber(lpFiber: *anyopaque)
     callconv(w32.WINAPI) void;
 
 
-pub fn switchToFiber(lpFiber: *anyopaque) void {
+fn switchToFiber(lpFiber: *anyopaque) void {
     SwitchToFiber(lpFiber);
 }
 
+
+// ---------------------------------------------------------------------------
+
+const Time = struct {
+    delta_ticks: i64 = 0,
+    delta_nanoseconds: i64 = 0,
+    delta_microseconds: i64 = 0,
+    delta_milliseconds: i64 = 0,
+    delta_seconds: f32 = 0,
+    ticks: i64 = 0,
+    nanoseconds: i64 = 0,
+    microseconds: i64 = 0,
+    milliseconds: i64 = 0,
+    seconds: f32 = 0,
+    initial_ticks: i64 = 0,
+    ticks_per_second: i64 = 0,
+};
 
 // ---------------------------------------------------------------------------
 
@@ -95,6 +112,7 @@ pub const Window = struct {
     main_fiber: ?*anyopaque = null,
     message_fiber: ?*anyopaque = null,
     attributes: WindowAttributes = .{},
+    time: Time = .{},
     initialized: bool = false,
     quit: bool = false,
 
@@ -104,6 +122,7 @@ pub const Window = struct {
 // ---------------------------------------------------------------------------
 pub fn initialize(window: *Window) !void {
     try windowInitialize(window);
+    try timeInitialize(window);
 }
 
 
@@ -120,7 +139,7 @@ fn windowInitialize(
     window.main_fiber = try convertThreadToFiber(null);
     window.message_fiber = try createFiber(
         0,
-        window_message_fiber_proc, 
+        windowMessageFiberProc, 
         window
     );
 
@@ -198,6 +217,23 @@ fn windowInitialize(
 
 // ----------------------------------------------------------------------------
 
+fn timeInitialize(window: *Window) !void {
+    var large_integer: i64 = 0;
+    
+    _ = w32.kernel32.QueryPerformanceFrequency(
+        &large_integer
+    );
+    window.time.ticks_per_second = large_integer;
+    
+    _ = w32.kernel32.QueryPerformanceCounter(
+        &large_integer
+    );  
+    window.time.initial_ticks = large_integer;
+    
+}
+
+// ----------------------------------------------------------------------------
+
 pub fn pull(window: *Window) anyerror!bool {
     if (!window.initialized) return error.WindowNotInitialized;
     try windowPull(window);
@@ -209,7 +245,7 @@ pub fn pull(window: *Window) anyerror!bool {
 
 // ---------------------------------------------------------------------------
 
-fn window_message_fiber_proc(window: *Window) callconv(w32.WINAPI) void {
+fn windowMessageFiberProc(window: *Window) callconv(w32.WINAPI) void {
     _ = setTimer(window.handle, 1, 1, null) catch unreachable;
     var message = std.mem.zeroes(w32.user32.MSG);
     while (true) {    
