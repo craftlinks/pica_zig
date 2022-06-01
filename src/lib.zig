@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = @import("std").mem;
 pub const zwin32 = @import("zwin32");
 pub const w32 = zwin32.base;
+pub const POINT = w32.POINT;
 
 // ----------------------------------------------------------------------------
 // Constants
@@ -46,6 +47,12 @@ extern "kernel32" fn SwitchToFiber(lpFiber: *anyopaque)
 fn switchToFiber(lpFiber: *anyopaque) void {
     SwitchToFiber(lpFiber);
 }
+
+// ---------------------------------------------------------------------------
+// Misc
+
+extern "user32" fn ClientToScreen( hWnd: ?w32.HWND, lpPoint: *POINT) 
+    callconv(w32.WINAPI) w32.BOOL;
 
 // ---------------------------------------------------------------------------
 // SetTimer
@@ -104,7 +111,6 @@ fn registerRawInputDevices(
     }
 }
 
-
 // ---------------------------------------------------------------------------
 
 const Time = struct {
@@ -124,6 +130,31 @@ const Time = struct {
 
 // ---------------------------------------------------------------------------
 
+const Button = struct {
+    down: bool = false,
+    pressed: bool = false,
+    released: bool = false,
+
+    pub fn update_button(self: Button, is_down: bool) void {
+        const was_down = self.down;
+        self.down = is_down;
+        self.pressed = !was_down and is_down;
+        self.released = was_down and !is_down;
+    }
+};
+
+
+
+const Mouse = struct {
+    left_button: Button = .{},
+    right_button: Button = .{},
+    wheel: i32 = 0,
+    delta_wheel: i32 = 0,
+    position: [2]i32 = .{0, 0},   
+    delta_position: [2]i32 = .{0, 0},
+};
+
+// ---------------------------------------------------------------------------
 pub const WindowAttributes = struct {
 
     /// The window's title.
@@ -148,8 +179,7 @@ pub const Window = struct {
     time: Time = .{},
     initialized: bool = false,
     quit: bool = false,
-
-   
+    mouse: Mouse = .{},
 };
 
 // ---------------------------------------------------------------------------
@@ -304,12 +334,22 @@ fn mouseInitialize(window: *Window) !void {
     );
 }
 
+fn mousePull(window: *Window) !void {
+    _  = window;
+    var mouse_position = POINT{.x = 0, .y = 0};
+    _ = w32.GetCursorPos(&mouse_position);
+    mouse_position.x -= window.attributes.position[0];
+    mouse_position.y -= window.attributes.position[1];
+    window.mouse.position = .{mouse_position.x, mouse_position.y};
+}
+
 // ----------------------------------------------------------------------------
 
 pub fn pull(window: *Window) anyerror!bool {
     if (!window.initialized) return error.WindowNotInitialized;
     try windowPull(window);
     try timePull(window);
+    try mousePull(window);
     
 
 
@@ -392,7 +432,31 @@ fn processWindowMessage(
 
 // ---------------------------------------------------------------------------
 fn windowPull(window: *Window) !void {
+    
+    window.attributes.resized = false;
+    window.mouse.delta_position[0] = 0;
+    window.mouse.delta_position[1] = 0;
+    window.mouse.delta_wheel = 0;
+    window.mouse.left_button.pressed = false;
+    window.mouse.left_button.released = false;
+    window.mouse.right_button.pressed = false;
+    window.mouse.right_button.released = false;
+    
     switchToFiber(window.message_fiber.?);
+    var client_rect: w32.RECT = .{.left = 0, .right = 0, .top = 0, .bottom = 0}; 
+    _ = w32.GetClientRect(window.handle, &client_rect);
+
+    window.attributes.size[0] = client_rect.right - client_rect.left;
+    window.attributes.size[1] = client_rect.bottom - client_rect.top;
+
+    var window_position: w32.POINT = .{
+        .x = client_rect.left,
+        .y = client_rect.top
+    };
+
+    _ = ClientToScreen(window.handle, &window_position);
+    window.attributes.position[0] = window_position.x;
+    window.attributes.position[1] = window_position.y;
 }
 
 // ---------------------------------------------------------------------------

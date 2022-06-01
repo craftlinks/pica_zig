@@ -26,7 +26,13 @@ pub fn main() !void {
     while(pica.pull(&window)) |quit| {
         if (quit) break;
         if ( window.time.seconds - last_print_time >  1.0) {
-            std.debug.print("ms: {any}, delta_us: {any}\n", .{window.time.milliseconds, window.time.delta_microseconds});
+            std.debug.print("pos: {any}, mouse: {any}, ms: {any}, delta_us: {any}\n", 
+            .{
+                window.attributes.position,
+                window.mouse.position,
+                window.time.milliseconds,
+                window.time.delta_microseconds
+            });
             last_print_time = window.time.seconds;
         }
 
