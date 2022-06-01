@@ -112,7 +112,7 @@ const Time = struct {
     delta_nanoseconds: i64 = 0,
     delta_microseconds: i64 = 0,
     delta_milliseconds: i64 = 0,
-    delta_seconds: f32 = 0,
+    delta_seconds: f64 = 0,
     ticks: i64 = 0,
     nanoseconds: i64 = 0,
     microseconds: i64 = 0,
@@ -265,6 +265,29 @@ fn timeInitialize(window: *Window) !void {
     
 }
 
+
+fn timePull(window: *Window) !void {
+    var large_integer: i64 = 0;
+    _ = w32.kernel32.QueryPerformanceCounter(
+        &large_integer
+    );
+    const current_ticks: i64 = large_integer;
+    window.time.delta_ticks = current_ticks 
+        - window.time.ticks 
+        - window.time.initial_ticks;
+    window.time.ticks = current_ticks - window.time.initial_ticks;
+    
+    window.time.delta_nanoseconds =  @divTrunc(1000 * 1000 * 1000 * window.time.delta_ticks, window.time.ticks_per_second);
+    window.time.delta_microseconds = @divTrunc(window.time.delta_nanoseconds,1000); 
+    window.time.delta_milliseconds = @divTrunc(window.time.delta_microseconds,1000); 
+    window.time.delta_seconds = @intToFloat(f64,window.time.delta_ticks) / @intToFloat(f64,window.time.ticks_per_second); 
+
+    window.time.nanoseconds =  @divTrunc(1000 * 1000 * 1000 * window.time.ticks, window.time.ticks_per_second);
+    window.time.microseconds = @divTrunc(window.time.nanoseconds,1000);
+    window.time.milliseconds = @divTrunc(window.time.microseconds,1000);
+    window.time.seconds = @intToFloat(f32,window.time.ticks) / @intToFloat(f32,window.time.ticks_per_second);
+}
+
 // ----------------------------------------------------------------------------
 
 fn mouseInitialize(window: *Window) !void {
@@ -286,6 +309,7 @@ fn mouseInitialize(window: *Window) !void {
 pub fn pull(window: *Window) anyerror!bool {
     if (!window.initialized) return error.WindowNotInitialized;
     try windowPull(window);
+    try timePull(window);
     
 
 

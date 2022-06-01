@@ -22,9 +22,13 @@ pub fn main() !void {
     try pica.initialize(&window);
     std.debug.print("{any}\n", .{window});
 
+    var last_print_time: f32 = 0.0;
     while(pica.pull(&window)) |quit| {
         if (quit) break;
-        // Do stuff
+        if ( window.time.seconds - last_print_time >  1.0) {
+            std.debug.print("ms: {any}, delta_us: {any}\n", .{window.time.milliseconds, window.time.delta_microseconds});
+            last_print_time = window.time.seconds;
+        }
 
     } else |err| switch (err) {
         error.WindowNotInitialized => {
