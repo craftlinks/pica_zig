@@ -3,6 +3,7 @@ const mem = @import("std").mem;
 pub const zwin32 = @import("zwin32");
 pub const w32 = zwin32.base;
 pub const POINT = w32.POINT;
+pub const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 
 // ----------------------------------------------------------------------------
 // Constants
@@ -138,6 +139,27 @@ fn registerRawInputDevices(
 }
 
 // ---------------------------------------------------------------------------
+// GetRawInputData for mouse.
+// info: https://docs.microsoft.com/en-us/windows/win32/api/winuser/\
+// nf-winuser-getrawinputdata
+const HRAWINPUT = w32.HANDLE; // *anyopaque pointer
+
+extern "user32" fn GetRawInputData(
+    hRawInput: HRAWINPUT,
+    uiCommand: w32.UINT,
+    pData: ?*anyopaque,
+    pcbSize: *usize,
+    cbSizeHeader: usize
+) callconv(w32.WINAPI) w32.UINT;
+
+const RAWINPUTHEADER = extern struct {
+    dwType: w32.DWORD,
+    dwSize: w32.DWORD,
+    hDevice: HRAWINPUT,
+    wParam: w32.WPARAM,
+};
+
+// ---------------------------------------------------------------------------
 
 const Time = struct {
     delta_ticks: i64 = 0,
@@ -242,7 +264,7 @@ fn windowInitialize(
             w32.kernel32.GetModuleHandleW(null)
         ),
         .hIcon = null,
-        .hCursor = null, // w32.LoadCursorA(null, @intToPtr(w32.LPCSTR, 32512)),
+        .hCursor = null,
         .hbrBackground = null,
         .lpszMenuName = null,
         .lpszClassName = "picaWINDOW",
@@ -356,21 +378,44 @@ fn timePull(window: *Window) !void {
     _ = w32.kernel32.QueryPerformanceCounter(
         &large_integer
     );
+
     const current_ticks: i64 = large_integer;
+    
     window.time.delta_ticks = current_ticks 
         - window.time.ticks 
         - window.time.initial_ticks;
+    
     window.time.ticks = current_ticks - window.time.initial_ticks;
     
-    window.time.delta_nanoseconds =  @divTrunc(1000 * 1000 * 1000 * window.time.delta_ticks, window.time.ticks_per_second);
-    window.time.delta_microseconds = @divTrunc(window.time.delta_nanoseconds,1000); 
-    window.time.delta_milliseconds = @divTrunc(window.time.delta_microseconds,1000); 
-    window.time.delta_seconds = @intToFloat(f64,window.time.delta_ticks) / @intToFloat(f64,window.time.ticks_per_second); 
+    window.time.delta_nanoseconds =  @divTrunc(
+        1000 * 1000 * 1000 * window.time.delta_ticks,
+        window.time.ticks_per_second
+    );
+    
+    window.time.delta_microseconds = @divTrunc(
+        window.time.delta_nanoseconds,
+        1000
+    ); 
+    
+    window.time.delta_milliseconds = @divTrunc(
+        window.time.delta_microseconds,
+        1000
+    ); 
+    
+    window.time.delta_seconds = @intToFloat(f64,window.time.delta_ticks) /
+        @intToFloat(f64,window.time.ticks_per_second); 
 
-    window.time.nanoseconds =  @divTrunc(1000 * 1000 * 1000 * window.time.ticks, window.time.ticks_per_second);
+    window.time.nanoseconds =  @divTrunc(
+        1000 * 1000 * 1000 * window.time.ticks,
+        window.time.ticks_per_second
+    );
+    
     window.time.microseconds = @divTrunc(window.time.nanoseconds,1000);
+    
     window.time.milliseconds = @divTrunc(window.time.microseconds,1000);
-    window.time.seconds = @intToFloat(f32,window.time.ticks) / @intToFloat(f32,window.time.ticks_per_second);
+    
+    window.time.seconds = @intToFloat(f32,window.time.ticks) /
+        @intToFloat(f32,window.time.ticks_per_second);
 }
 
 // ----------------------------------------------------------------------------
@@ -463,7 +508,19 @@ fn processWindowMessage(
         },
 
         w32.user32.WM_INPUT => {
-            // TODO, Geert: Handle Mouse imput!
+            var size: usize = 0; 
+            _ = GetRawInputData(@intToPtr(HRAWINPUT, @intCast(usize,lparam)), 0x10000003, null, &size, @sizeOf(RAWINPUTHEADER));
+            // this array lives on the stack
+            var buf: [1024]u8 = undefined; 
+            var fba = FixedBufferAllocator.init(&buf);
+            // this allocator fulfils memory allocation requests by returning pointers into 'buf'.
+            const allocator = fba.allocator(); 
+            _ = allocator;
+            // use fba here, instead of providing pointer to buf directly!?
+            if (GetRawInputData(@intToPtr(HRAWINPUT, @intCast(usize,lparam)), 0x10000003, &buf, &size, @sizeOf(RAWINPUTHEADER)) < 1024) {
+                // TODO, Geert: update the window.mouse data
+            }
+
         },
         
         w32.user32.WM_TIMER => {
