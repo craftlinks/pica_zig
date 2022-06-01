@@ -54,6 +54,32 @@ fn switchToFiber(lpFiber: *anyopaque) void {
 extern "user32" fn ClientToScreen( hWnd: ?w32.HWND, lpPoint: *POINT) 
     callconv(w32.WINAPI) w32.BOOL;
 
+/// Check if Windows version is supported.
+fn checkIfWindowsVersionIsSupported() void {
+     var version: w32.OSVERSIONINFOW = undefined;
+    _ = w32.ntdll.RtlGetVersion(&version);
+
+    var os_is_supported = false;
+    if (version.dwMajorVersion > 10) {
+        os_is_supported = true;
+    } else if (
+        version.dwMajorVersion == 10 and version.dwBuildNumber >= 18363
+    ) {
+        os_is_supported = true;
+    }
+
+    if (!os_is_supported) {
+        _ = w32.user32.messageBoxA(
+            null,
+            "This program requires Windows 10 Build 18363.1350+ or newer. Please upgrade your Windows version."
+            ,
+            "Error",
+            w32.user32.MB_OK | w32.user32.MB_ICONERROR,
+        ) catch 0;
+        w32.kernel32.ExitProcess(0);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // SetTimer
 
@@ -278,6 +304,35 @@ fn windowInitialize(
     window.initialized = true; 
 }
 
+// ---------------------------------------------------------------------------
+fn windowPull(window: *Window) !void {
+    
+    window.attributes.resized = false;
+    window.mouse.delta_position[0] = 0;
+    window.mouse.delta_position[1] = 0;
+    window.mouse.delta_wheel = 0;
+    window.mouse.left_button.pressed = false;
+    window.mouse.left_button.released = false;
+    window.mouse.right_button.pressed = false;
+    window.mouse.right_button.released = false;
+    
+    switchToFiber(window.message_fiber.?);
+    var client_rect: w32.RECT = .{.left = 0, .right = 0, .top = 0, .bottom = 0}; 
+    _ = w32.GetClientRect(window.handle, &client_rect);
+
+    window.attributes.size[0] = client_rect.right - client_rect.left;
+    window.attributes.size[1] = client_rect.bottom - client_rect.top;
+
+    var window_position: w32.POINT = .{
+        .x = client_rect.left,
+        .y = client_rect.top
+    };
+
+    _ = ClientToScreen(window.handle, &window_position);
+    window.attributes.position[0] = window_position.x;
+    window.attributes.position[1] = window_position.y;
+}
+
 // ----------------------------------------------------------------------------
 
 fn timeInitialize(window: *Window) !void {
@@ -406,6 +461,10 @@ fn processWindowMessage(
         w32.user32.WM_SIZE => {
             window.attributes.resized = true;
         },
+
+        w32.user32.WM_INPUT => {
+            // TODO, Geert: Handle Mouse imput!
+        },
         
         w32.user32.WM_TIMER => {
             switchToFiber(window.main_fiber.?);
@@ -431,61 +490,6 @@ fn processWindowMessage(
 }
 
 // ---------------------------------------------------------------------------
-fn windowPull(window: *Window) !void {
-    
-    window.attributes.resized = false;
-    window.mouse.delta_position[0] = 0;
-    window.mouse.delta_position[1] = 0;
-    window.mouse.delta_wheel = 0;
-    window.mouse.left_button.pressed = false;
-    window.mouse.left_button.released = false;
-    window.mouse.right_button.pressed = false;
-    window.mouse.right_button.released = false;
-    
-    switchToFiber(window.message_fiber.?);
-    var client_rect: w32.RECT = .{.left = 0, .right = 0, .top = 0, .bottom = 0}; 
-    _ = w32.GetClientRect(window.handle, &client_rect);
-
-    window.attributes.size[0] = client_rect.right - client_rect.left;
-    window.attributes.size[1] = client_rect.bottom - client_rect.top;
-
-    var window_position: w32.POINT = .{
-        .x = client_rect.left,
-        .y = client_rect.top
-    };
-
-    _ = ClientToScreen(window.handle, &window_position);
-    window.attributes.position[0] = window_position.x;
-    window.attributes.position[1] = window_position.y;
-}
-
-// ---------------------------------------------------------------------------
-
-/// Check if Windows version is supported.
-fn checkIfWindowsVersionIsSupported() void {
-     var version: w32.OSVERSIONINFOW = undefined;
-    _ = w32.ntdll.RtlGetVersion(&version);
-
-    var os_is_supported = false;
-    if (version.dwMajorVersion > 10) {
-        os_is_supported = true;
-    } else if (
-        version.dwMajorVersion == 10 and version.dwBuildNumber >= 18363
-    ) {
-        os_is_supported = true;
-    }
-
-    if (!os_is_supported) {
-        _ = w32.user32.messageBoxA(
-            null,
-            "This program requires Windows 10 Build 18363.1350+ or newer. Please upgrade your Windows version."
-            ,
-            "Error",
-            w32.user32.MB_OK | w32.user32.MB_ICONERROR,
-        ) catch 0;
-        w32.kernel32.ExitProcess(0);
-    }
-}
 
 
 
