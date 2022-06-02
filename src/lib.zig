@@ -8,7 +8,9 @@ pub const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 // ----------------------------------------------------------------------------
 // Constants
 const GWLP_USERDATA = -21;
-
+const HRAWINPUT = w32.HANDLE; // *anyopaque pointer
+const RIM_TYPEMOUSE = 0;
+const MOUSE_MOVE_RELATIVE = 0;
 
 // ----------------------------------------------------------------------------
 // Win32 Fibers (aka "co-routines")
@@ -142,7 +144,6 @@ fn registerRawInputDevices(
 // GetRawInputData for mouse.
 // info: https://docs.microsoft.com/en-us/windows/win32/api/winuser/\
 // nf-winuser-getrawinputdata
-const HRAWINPUT = w32.HANDLE; // *anyopaque pointer
 
 extern "user32" fn GetRawInputData(
     hRawInput: HRAWINPUT,
@@ -157,6 +158,45 @@ const RAWINPUTHEADER = extern struct {
     dwSize: w32.DWORD,
     hDevice: HRAWINPUT,
     wParam: w32.WPARAM,
+};
+
+const RAWMOUSE = extern struct {
+    usFlags: w32.USHORT,
+    buttons: extern union {
+        ulButtons: w32.ULONG,
+        usButtons: extern struct {
+            usButtonFlags: w32.USHORT,
+            usButtonData: w32.USHORT,
+        }
+    },
+    ulRawButtons: w32.ULONG,
+    lLastX: w32.LONG,
+    lLastY: w32.LONG,
+    ulExtraInformation: w32.ULONG,
+};
+
+const RAWKEYBOARD = extern struct {
+    MakeCode: w32.USHORT,
+    Flags: w32.USHORT,
+    Reserved: w32.USHORT,
+    VKey: w32.USHORT,
+    Message: w32.UINT,
+    ExtraInformation: w32.ULONG,
+};
+
+const RAWHID = extern struct {
+    dwSizeHid: w32.DWORD,
+    dwCount: w32.DWORD,
+    bRawData: w32.BYTE,
+};
+
+const RAWINPUT = extern struct {
+    header: RAWINPUTHEADER,
+    data: extern union {
+        mouse: RAWMOUSE,
+        keyboard: RAWKEYBOARD,
+        hid: RAWHID,
+     },
 };
 
 // ---------------------------------------------------------------------------
@@ -204,7 +244,6 @@ const Mouse = struct {
 
 // ---------------------------------------------------------------------------
 pub const WindowAttributes = struct {
-
     /// The window's title.
     title: [*:0]const u8 = "PiCaLib Window",
     /// The window's position.
@@ -218,7 +257,6 @@ pub const WindowAttributes = struct {
 
 // ---------------------------------------------------------------------------
 pub const Window = struct {
-
     handle: w32.HWND = undefined,
     device_context: w32.HDC = undefined,
     main_fiber: ?*anyopaque = null,
@@ -509,18 +547,36 @@ fn processWindowMessage(
 
         w32.user32.WM_INPUT => {
             var size: usize = 0; 
-            _ = GetRawInputData(@intToPtr(HRAWINPUT, @intCast(usize,lparam)), 0x10000003, null, &size, @sizeOf(RAWINPUTHEADER));
-            // this array lives on the stack
-            var buf: [1024]u8 = undefined; 
-            var fba = FixedBufferAllocator.init(&buf);
-            // this allocator fulfils memory allocation requests by returning pointers into 'buf'.
-            const allocator = fba.allocator(); 
-            _ = allocator;
-            // use fba here, instead of providing pointer to buf directly!?
-            if (GetRawInputData(@intToPtr(HRAWINPUT, @intCast(usize,lparam)), 0x10000003, &buf, &size, @sizeOf(RAWINPUTHEADER)) < 1024) {
-                // TODO, Geert: update the window.mouse data
+            _ = GetRawInputData(
+                    @intToPtr(HRAWINPUT, @intCast(usize,lparam)),
+                    0x10000003,
+                    null,
+                    &size,
+                    @sizeOf(RAWINPUTHEADER)
+                );
+            // this array lives on the stack 
+            // and will be filled with raw mouse data with each pass.
+            var buf: [64]u8 = undefined; 
+            var stack_allocator = FixedBufferAllocator.init(&buf).allocator();
+            var memory = stack_allocator.alloc(u8, size) catch unreachable;
+            if (
+                GetRawInputData(
+                    @intToPtr(HRAWINPUT, @intCast(usize,lparam)),
+                    0x10000003,
+                    &memory,
+                    &size,
+                    @sizeOf(RAWINPUTHEADER)
+                ) == size
+            ) {
+                const raw_input: *RAWINPUT = @ptrCast(*RAWINPUT, &memory);
+                if (
+                    raw_input.header.dwType == RIM_TYPEMOUSE 
+                    and 
+                    raw_input.data.mouse.usFlags == MOUSE_MOVE_RELATIVE
+                ) {
+                  // TODO, Geert: update window.mouse struct!
+                }
             }
-
         },
         
         w32.user32.WM_TIMER => {
