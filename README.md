@@ -1,30 +1,30 @@
-# zPiCa - Zig Helper Libary for Win32 Window Management (!!WIP!!)
+# ZiCa - Zig Helper Libary for Win32 Window Management (!!WIP!!)
 ## Getting started
 
-Copy `pica` folder to a `libs` subdirectory of the root of your project.
+Copy `zica` folder to a `libs` subdirectory of the root of your project.
 
 Then in your `build.zig` add:
 
 ```zig
 const std = @import("std");
-const pica = @import("libs/pica/build.zig");
+const zica = @import("libs/zica/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
     ...
-    exe.addPackage(pica.pkg);
+    exe.addPackage(zica.pkg);
 }
 ```
 
-Now in your code you may import and use `pica`:
+Now in your code you may import and use `zica`:
 
 ```zig
-const pica = @import("pica");
+const zica = @import("pica");
 
 pub fn main() !void {
     ...
 }
 ```
-An example window application using `pica` can be found in `pica/src/example`  
+An example window application using `zica` can be found in `zica/src/example`  
 
 To run the example use:
 ```
@@ -33,4 +33,4 @@ zig build run
 
 
 
-`pica` uses `zwin32` standalone Zig bindings for Win32 API by [Michal Ziulek](https://github.com/michal-z) 
+`zica` uses `zwin32` standalone Zig bindings for Win32 API by [Michal Ziulek](https://github.com/michal-z) 

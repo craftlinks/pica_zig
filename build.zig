@@ -2,7 +2,7 @@ const std = @import("std");
 const w32 = @import("libs/zwin32/build.zig");
 
 pub const pkg = std.build.Pkg {
-    .name = "pica",
+    .name = "zica",
     .path = .{ .path = thisDir() ++ "/src/lib.zig" },
     .dependencies = &[_]std.build.Pkg { w32.pkg, },
 };

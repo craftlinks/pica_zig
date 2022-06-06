@@ -11,6 +11,14 @@ const GWLP_USERDATA = -21;
 const HRAWINPUT = w32.HANDLE; // *anyopaque pointer
 const RIM_TYPEMOUSE = 0;
 const MOUSE_MOVE_RELATIVE = 0;
+const RI_MOUSE_LEFT_BUTTON_DOWN = 0x0001;
+const RI_MOUSE_LEFT_BUTTON_UP = 0x0002;
+const RI_MOUSE_RIGHT_BUTTON_DOWN = 0x0004;
+const RI_MOUSE_RIGHT_BUTTON_UP = 0x0008;
+const RI_MOUSE_MIDDLE_BUTTON_DOWN = 0x0010;
+const RI_MOUSE_MIDDLE_BUTTON_UP = 0x0020;
+const RI_MOUSE_WHEEL = 0x0400;
+const WHEEL_DELTA: i16 = 120;
 
 // ----------------------------------------------------------------------------
 // Win32 Fibers (aka "co-routines")
@@ -166,7 +174,7 @@ const RAWMOUSE = extern struct {
         ulButtons: w32.ULONG,
         usButtons: extern struct {
             usButtonFlags: w32.USHORT,
-            usButtonData: w32.USHORT,
+            usButtonData: w32.SHORT,
         }
     },
     ulRawButtons: w32.ULONG,
@@ -223,7 +231,7 @@ const Button = struct {
     pressed: bool = false,
     released: bool = false,
 
-    pub fn update_button(self: Button, is_down: bool) void {
+    pub fn update_button(self: *Button, is_down: bool) void {
         const was_down = self.down;
         self.down = is_down;
         self.pressed = !was_down and is_down;
@@ -236,8 +244,9 @@ const Button = struct {
 const Mouse = struct {
     left_button: Button = .{},
     right_button: Button = .{},
+    middle_button: Button = .{},
     wheel: i32 = 0,
-    delta_wheel: i32 = 0,
+    delta_wheel: i16 = 0,
     position: [2]i32 = .{0, 0},   
     delta_position: [2]i32 = .{0, 0},
 };
@@ -375,8 +384,14 @@ fn windowPull(window: *Window) !void {
     window.mouse.left_button.released = false;
     window.mouse.right_button.pressed = false;
     window.mouse.right_button.released = false;
+    window.mouse.middle_button.pressed = false;
+    window.mouse.middle_button.released = false;
     
     switchToFiber(window.message_fiber.?);
+
+    window.mouse.wheel += window.mouse.delta_wheel;
+
+
     var client_rect: w32.RECT = .{.left = 0, .right = 0, .top = 0, .bottom = 0}; 
     _ = w32.GetClientRect(window.handle, &client_rect);
 
@@ -537,7 +552,6 @@ fn processWindowMessage(
     );
     
     var window: *Window = @intToPtr(*Window, @intCast(usize, _window_ptr));
-    _ = window;
 
     switch (message) {
         
@@ -574,7 +588,53 @@ fn processWindowMessage(
                     and 
                     raw_input.data.mouse.usFlags == MOUSE_MOVE_RELATIVE
                 ) {
-                  // TODO, Geert: update window.mouse struct!
+                    window.mouse.delta_position[0] += 
+                        raw_input.data.mouse.lLastX;
+                    window.mouse.delta_position[1] += 
+                        raw_input.data.mouse.lLastY;
+                    
+                    const button_flags = raw_input
+                                            .data
+                                            .mouse
+                                            .buttons
+                                            .usButtons
+                                            .usButtonFlags;
+
+                    // Update left mouse button state.
+                    var left_button_down: bool = window.mouse.left_button.down;
+                    if (button_flags & RI_MOUSE_LEFT_BUTTON_DOWN != 0) {
+                        left_button_down = true;
+                    }
+                    if (button_flags & RI_MOUSE_LEFT_BUTTON_UP != 0) {
+                        left_button_down = false;
+                    }
+                    window.mouse.left_button.update_button(left_button_down);
+
+                    // Update right mouse button state.
+                    var right_button_down: bool = window.mouse.right_button.down;
+                    if (button_flags & RI_MOUSE_RIGHT_BUTTON_DOWN != 0) {
+                        right_button_down = true;
+                    }
+                    if (button_flags & RI_MOUSE_RIGHT_BUTTON_UP != 0) {
+                        right_button_down = false;
+                    }
+                    window.mouse.right_button.update_button(right_button_down);
+
+                    // Update middle mouse button state.
+                    var middle_button_down: bool = window.mouse.middle_button.down;
+                    if (button_flags & RI_MOUSE_MIDDLE_BUTTON_DOWN != 0) {
+                        middle_button_down = true;
+                    }
+                    if (button_flags & RI_MOUSE_MIDDLE_BUTTON_UP != 0) {
+                        middle_button_down = false;
+                    }
+                    window.mouse.middle_button.update_button(middle_button_down);
+
+                    // Update mouse wheel state.
+                    if (button_flags & RI_MOUSE_WHEEL != 0) {
+                        const wheel_data = raw_input.data.mouse.buttons.usButtons.usButtonData;
+                        window.mouse.delta_wheel += @divTrunc(wheel_data, WHEEL_DELTA);
+                    }
                 }
             }
         },
