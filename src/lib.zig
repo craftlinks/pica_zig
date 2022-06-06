@@ -375,7 +375,10 @@ fn windowInitialize(
 
 // ---------------------------------------------------------------------------
 fn windowPull(window: *Window) !void {
-    
+    // !!Reset the text buffer!!
+    // p->text[0] = 0;
+    // p->text_length = 0
+
     window.attributes.resized = false;
     window.mouse.delta_position[0] = 0;
     window.mouse.delta_position[1] = 0;
@@ -601,7 +604,7 @@ fn processWindowMessage(
                                             .usButtonFlags;
 
                     // Update left mouse button state.
-                    var left_button_down: bool = window.mouse.left_button.down;
+                    var left_button_down = window.mouse.left_button.down;
                     if (button_flags & RI_MOUSE_LEFT_BUTTON_DOWN != 0) {
                         left_button_down = true;
                     }
@@ -611,7 +614,7 @@ fn processWindowMessage(
                     window.mouse.left_button.update_button(left_button_down);
 
                     // Update right mouse button state.
-                    var right_button_down: bool = window.mouse.right_button.down;
+                    var right_button_down = window.mouse.right_button.down;
                     if (button_flags & RI_MOUSE_RIGHT_BUTTON_DOWN != 0) {
                         right_button_down = true;
                     }
@@ -621,22 +624,29 @@ fn processWindowMessage(
                     window.mouse.right_button.update_button(right_button_down);
 
                     // Update middle mouse button state.
-                    var middle_button_down: bool = window.mouse.middle_button.down;
+                    var middle_button_down = window.mouse.middle_button.down;
                     if (button_flags & RI_MOUSE_MIDDLE_BUTTON_DOWN != 0) {
                         middle_button_down = true;
                     }
                     if (button_flags & RI_MOUSE_MIDDLE_BUTTON_UP != 0) {
                         middle_button_down = false;
                     }
-                    window.mouse.middle_button.update_button(middle_button_down);
+                    window.mouse.middle_button
+                        .update_button(middle_button_down);
 
                     // Update mouse wheel state.
                     if (button_flags & RI_MOUSE_WHEEL != 0) {
-                        const wheel_data = raw_input.data.mouse.buttons.usButtons.usButtonData;
-                        window.mouse.delta_wheel += @divTrunc(wheel_data, WHEEL_DELTA);
+                        const wheel_data = 
+                            raw_input.data.mouse.buttons.usButtons.usButtonData;
+                        window.mouse.delta_wheel += 
+                            @divTrunc(wheel_data, WHEEL_DELTA);
                     }
                 }
             }
+        },
+
+        w32.user32.WM_CHAR => {
+            // TODO, Geert: character input
         },
         
         w32.user32.WM_TIMER => {
