@@ -1,6 +1,7 @@
 const std = @import("std");
 const zica = @import("zica");
-
+const SHIFT = zica.SHIFT;
+const CTR = zica.CTR;
 
 // A global variable to hold our zica window (required)
 var window: zica.Window = .{};
@@ -20,7 +21,7 @@ pub fn main() !void {
     
     // Initialize and show the window (required)
     try zica.initialize(&window);
-    std.debug.print("{any}\n", .{window});
+    // std.debug.print("{any}\n", .{window});
 
     var last_print_time: f32 = 0.0;
     while(zica.pull(&window)) |quit| {
@@ -58,6 +59,12 @@ pub fn main() !void {
         if (window.text_length > 0) {
             const text = window.text[0..window.text_length+1];
             std.debug.print("{s}\n", .{text});
+        }
+        if (window.keys[SHIFT].pressed) {
+            std.debug.print("SHIFT is pressed!\n", .{});
+        }
+        if (window.keys[CTR].pressed) {
+            std.debug.print("CTR is pressed!\n", .{});
         }
         
     } else |err| switch (err) {

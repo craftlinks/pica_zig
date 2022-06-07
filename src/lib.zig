@@ -20,6 +20,11 @@ const RI_MOUSE_MIDDLE_BUTTON_UP = 0x0020;
 const RI_MOUSE_WHEEL = 0x0400;
 const WHEEL_DELTA: i16 = 120;
 const MAX_TEXT_LEN: usize = 256;
+const MAX_KEYS: usize = 256;
+pub const ALT: usize = 0x12;
+pub const CTR: usize = 0x11;
+pub const SHIFT: usize = 0x10;
+pub const SPACE: usize = 0x20;
 
 // ----------------------------------------------------------------------------
 // Win32 Fibers (aka "co-routines")
@@ -165,6 +170,13 @@ fn registerRawInputDevices(
 }
 
 // ---------------------------------------------------------------------------
+// GetKeyboardState
+
+extern "user32" fn GetKeyboardState(
+    lpKeyState: [*]w32.BYTE
+) callconv(w32.WINAPI) w32.BOOL;
+
+// ---------------------------------------------------------------------------
 // GetRawInputData for mouse.
 // info: https://docs.microsoft.com/en-us/windows/win32/api/winuser/\
 // nf-winuser-getrawinputdata
@@ -293,6 +305,7 @@ pub const Window = struct {
     mouse: Mouse = .{},
     text: [MAX_TEXT_LEN]u8 = undefined,
     text_length: usize = 0,
+    keys: [MAX_KEYS]Button = undefined,
 };
 
 // ---------------------------------------------------------------------------
@@ -518,11 +531,27 @@ fn mousePull(window: *Window) !void {
 
 // ----------------------------------------------------------------------------
 
+fn keyboardPull(window: *Window) !void {
+    var keyboard_state: [256]u8 = .{0} ** 256;
+    _ = GetKeyboardState(keyboard_state[0..256]);
+
+    var key: u8 = 0;
+    while (key < 255) : (key += 1) {
+        // std.debug.print("{}\n",.{key} );
+        window.keys[key].update_button(keyboard_state[key] >> 7 == 1);
+    }
+}
+
+
+
+// ----------------------------------------------------------------------------
+
 pub fn pull(window: *Window) anyerror!bool {
     if (!window.initialized) return error.WindowNotInitialized;
     try windowPull(window);
     try timePull(window);
     try mousePull(window);
+    try keyboardPull(window);
     
 
 
