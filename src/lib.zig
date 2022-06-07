@@ -19,6 +19,7 @@ const RI_MOUSE_MIDDLE_BUTTON_DOWN = 0x0010;
 const RI_MOUSE_MIDDLE_BUTTON_UP = 0x0020;
 const RI_MOUSE_WHEEL = 0x0400;
 const WHEEL_DELTA: i16 = 120;
+const MAX_TEXT_LEN: usize = 256;
 
 // ----------------------------------------------------------------------------
 // Win32 Fibers (aka "co-routines")
@@ -64,6 +65,21 @@ fn switchToFiber(lpFiber: *anyopaque) void {
 
 extern "user32" fn ClientToScreen( hWnd: ?w32.HWND, lpPoint: *POINT) 
     callconv(w32.WINAPI) w32.BOOL;
+
+
+const CP_ACP = 0;
+
+extern "kernel32" fn WideCharToMultiByte(
+    CodePage: w32.UINT,
+    dwFlags: w32.DWORD,
+    lpWideCharStr: *const w32.WCHAR,
+    cchWideChar: w32.UINT,
+    lpMultiByteStr: *w32.CHAR,
+    cchMultiByte: w32.UINT,
+    lpDefaultChar: ?*const w32.CHAR,
+    lpUsedDefaultChar: ?*w32.BOOL,
+) callconv(w32.WINAPI) w32.UINT;
+
 
 /// Check if Windows version is supported.
 fn checkIfWindowsVersionIsSupported() void {
@@ -275,6 +291,8 @@ pub const Window = struct {
     initialized: bool = false,
     quit: bool = false,
     mouse: Mouse = .{},
+    text: [MAX_TEXT_LEN]u8 = undefined,
+    text_length: usize = 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -376,9 +394,8 @@ fn windowInitialize(
 // ---------------------------------------------------------------------------
 fn windowPull(window: *Window) !void {
     // !!Reset the text buffer!!
-    // p->text[0] = 0;
-    // p->text_length = 0
-
+    window.text[0] = 0;
+    window.text_length = 0;
     window.attributes.resized = false;
     window.mouse.delta_position[0] = 0;
     window.mouse.delta_position[1] = 0;
@@ -646,7 +663,26 @@ fn processWindowMessage(
         },
 
         w32.user32.WM_CHAR => {
-            // TODO, Geert: character input
+            const utf16_character: u16 = @intCast(u16, wparam);
+            var ascii_character: u8 = undefined;
+            const ascii_length: u32 = WideCharToMultiByte(
+                CP_ACP,
+                0,
+                &utf16_character,
+                1,
+                &ascii_character,
+                1,
+                null,
+                null
+            );
+
+            if (
+                ascii_length == 1 and window.text_length + 1 < MAX_TEXT_LEN - 1
+            ) {
+                window.text[window.text_length] = ascii_character;
+                window.text[window.text_length + 1] = 0;
+                window.text_length += ascii_length;
+}
         },
         
         w32.user32.WM_TIMER => {

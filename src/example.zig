@@ -54,8 +54,12 @@ pub fn main() !void {
         if (window.mouse.middle_button.released) {
             std.debug.print("MIDDLE_MOUSE_BUTTON_RELEASED\n", .{});
         }
-
-
+        
+        if (window.text_length > 0) {
+            const text = window.text[0..window.text_length+1];
+            std.debug.print("{s}\n", .{text});
+        }
+        
     } else |err| switch (err) {
         error.WindowNotInitialized => {
           std.debug.print("Initialize Window before calling zica.pull", .{});
