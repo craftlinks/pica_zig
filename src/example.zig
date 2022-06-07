@@ -21,7 +21,6 @@ pub fn main() !void {
     
     // Initialize and show the window (required)
     try zica.initialize(&window);
-    // std.debug.print("{any}\n", .{window});
 
     var last_print_time: f32 = 0.0;
     while(zica.pull(&window)) |quit| {
@@ -55,7 +54,6 @@ pub fn main() !void {
         if (window.mouse.middle_button.released) {
             std.debug.print("MIDDLE_MOUSE_BUTTON_RELEASED\n", .{});
         }
-        
         if (window.text_length > 0) {
             const text = window.text[0..window.text_length+1];
             std.debug.print("{s}\n", .{text});
@@ -66,7 +64,6 @@ pub fn main() !void {
         if (window.keys[CTR].pressed) {
             std.debug.print("CTR is pressed!\n", .{});
         }
-        
     } else |err| switch (err) {
         error.WindowNotInitialized => {
           std.debug.print("Initialize Window before calling zica.pull", .{});

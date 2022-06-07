@@ -537,12 +537,9 @@ fn keyboardPull(window: *Window) !void {
 
     var key: u8 = 0;
     while (key < 255) : (key += 1) {
-        // std.debug.print("{}\n",.{key} );
         window.keys[key].update_button(keyboard_state[key] >> 7 == 1);
     }
 }
-
-
 
 // ----------------------------------------------------------------------------
 
@@ -711,7 +708,7 @@ fn processWindowMessage(
                 window.text[window.text_length] = ascii_character;
                 window.text[window.text_length + 1] = 0;
                 window.text_length += ascii_length;
-}
+            }
         },
         
         w32.user32.WM_TIMER => {
@@ -738,8 +735,3 @@ fn processWindowMessage(
 }
 
 // ---------------------------------------------------------------------------
-
-
-
-   
-
