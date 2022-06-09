@@ -33,8 +33,18 @@ Now in your code you may import and use `zica`:
 ```zig
 const zica = @import("zica");
 
+// A global variable to hold our zica window (required)
+var window: zica.Window = .{};
+
 pub fn main() !void {
-    ...
+    
+    // Initialize and show the window (required)
+    try zica.initialize(&window);
+    
+    while(zica.pull(&window)) |quit| {
+        if (quit) break;
+        ...
+    }
 }
 ```
 An example window application using `zica` can be found in `zica/src/example`  
