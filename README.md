@@ -4,7 +4,7 @@
 
 ## What is Zica?
 
-`Zica` is a windows only library for creating and managing native windows 
+`Zica` is a Microsoft Windows only library for creating and managing `Win32` windows 
 optimized for game or simulation loops.   
 Design is from [Per Vognsen's Mu API](https://gist.github.com/pervognsen/6a67966c5dc4247a0021b95c8d0a7b72). 
 More information about this design can be found [here](https://www.youtube.com/watch?v=NG_mUhc8LRw),
