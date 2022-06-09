@@ -1,6 +1,6 @@
 **Project requires [0.10.0-dev.2562 (master)](https://ziglang.org/download/) or newer to compile.**
 
-# Zica - Zig Helper Libary for Win32 Window Management
+# Zica - Zig Helper Libary for minimal overhead Win32 Window Management
 
 ## What is Zica?
 
