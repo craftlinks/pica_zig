@@ -1,3 +1,5 @@
+**Project requires [0.10.0-dev.2562 (master)](https://ziglang.org/download/) or newer to compile.**
+
 # Zica - Zig Helper Libary for Win32 Window Management
 
 ## What is Zica?
@@ -29,7 +31,7 @@ pub fn build(b: *std.build.Builder) void {
 Now in your code you may import and use `zica`:
 
 ```zig
-const zica = @import("pica");
+const zica = @import("zica");
 
 pub fn main() !void {
     ...
